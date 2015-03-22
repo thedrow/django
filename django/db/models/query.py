@@ -23,7 +23,7 @@ from django.db.models.query_utils import (
 )
 from django.db.models.sql.constants import CURSOR
 from django.utils import six, timezone
-from django.utils.functional import partition
+from django.utils.functional import partition, cached_property
 from django.utils.version import get_version
 
 # The maximum number of items to display in a QuerySet.__repr__
@@ -1000,7 +1000,7 @@ class QuerySet(object):
             return True
         else:
             return False
-    ordered = property(ordered)
+    ordered = cached_property(ordered)
 
     @property
     def db(self):

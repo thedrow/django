@@ -168,7 +168,7 @@ class BaseManager(object):
             # if not model._meta.abstract and not model._meta.swapped:
             setattr(model, name, ManagerDescriptor(self))
         if (not getattr(model, '_default_manager', None) or
-                self.creation_counter < model._default_manager.creation_counter):
+                    self.creation_counter < model._default_manager.creation_counter):
             model._default_manager = self
 
         abstract = False
@@ -239,6 +239,60 @@ class BaseManager(object):
 
 class Manager(BaseManager.from_queryset(QuerySet)):
     pass
+
+
+class MemoizedManager(Manager):
+    def get_queryset(self, query=None):
+        """
+        Returns a new QuerySet object.  Subclasses can override this method to
+        easily customize the behavior of the Manager.
+        """
+        return self._queryset_class(self.model, query=query, using=self._db, hints=self._hints)
+
+    def all(self):
+        try:
+            all_query = self._all_query
+            return self.get_queryset(query=all_query)
+        except AttributeError:
+            qs = super(MemoizedManager, self).all()
+            self._all_query = qs.query
+            return qs
+
+    def count(self):
+        try:
+            count_query = self._count_query
+        except AttributeError:
+            qs = self.get_queryset()
+
+            count_query = self._count_query = qs.query._get_count_query()
+        return self._count_query.get_count(self.db, query=count_query)
+
+    def none(self):
+        try:
+            none_query = self._none_query
+            return self.get_queryset(query=none_query)
+        except AttributeError:
+            qs = super(MemoizedManager, self).none()
+            self._none_query = qs.query
+            return qs
+
+    def reverse(self):
+        try:
+            reverse_query = self._reverse_query
+            return self.get_queryset(query=reverse_query)
+        except AttributeError:
+            qs = super(MemoizedManager, self).reverse()
+            self._reverse_query = qs.query
+            return qs
+
+    def exists(self):
+        try:
+            exists_query = self._exists_query
+        except AttributeError:
+            qs = self.get_queryset()
+            exists_query = self._exists_query = qs.query
+
+        return exists_query.has_results(self.db, query=exists_query)
 
 
 class ManagerDescriptor(object):

@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import threading
 
 from django.db import models
+from django.db.models.manager import MemoizedManager
 from django.utils import six
 from django.utils.encoding import python_2_unicode_compatible
 
@@ -713,3 +714,7 @@ class Ticket23605B(models.Model):
 
 class Ticket23605C(models.Model):
     field_c0 = models.FloatField()
+
+
+class TicketXXX(models.Model):
+    objects = MemoizedManager()

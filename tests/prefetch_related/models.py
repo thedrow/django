@@ -3,6 +3,7 @@ from django.contrib.contenttypes.fields import (
 )
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models.manager import MemoizedManager
 from django.utils.encoding import python_2_unicode_compatible
 
 
@@ -15,6 +16,8 @@ class Author(models.Model):
     favorite_authors = models.ManyToManyField(
         'self', through='FavoriteAuthors', symmetrical=False, related_name='favors_me')
 
+    objects = MemoizedManager()
+
     def __str__(self):
         return self.name
 
@@ -26,10 +29,14 @@ class AuthorWithAge(Author):
     author = models.OneToOneField(Author, parent_link=True)
     age = models.IntegerField()
 
+    objects = MemoizedManager()
+
 
 class FavoriteAuthors(models.Model):
     author = models.ForeignKey(Author, to_field='name', related_name='i_like')
     likes_author = models.ForeignKey(Author, to_field='name', related_name='likes_me')
+
+    objects = MemoizedManager()
 
     class Meta:
         ordering = ['id']
@@ -39,6 +46,8 @@ class FavoriteAuthors(models.Model):
 class AuthorAddress(models.Model):
     author = models.ForeignKey(Author, to_field='name', related_name='addresses')
     address = models.TextField()
+
+    objects = MemoizedManager()
 
     class Meta:
         ordering = ['id']
@@ -51,6 +60,8 @@ class AuthorAddress(models.Model):
 class Book(models.Model):
     title = models.CharField(max_length=255)
     authors = models.ManyToManyField(Author, related_name='books')
+
+    objects = MemoizedManager()
 
     def __str__(self):
         return self.title
@@ -65,16 +76,20 @@ class BookWithYear(Book):
     aged_authors = models.ManyToManyField(
         AuthorWithAge, related_name='books_with_year')
 
+    objects = MemoizedManager()
 
 class Bio(models.Model):
     author = models.OneToOneField(Author)
     books = models.ManyToManyField(Book, blank=True)
 
+    objects = MemoizedManager()
 
 @python_2_unicode_compatible
 class Reader(models.Model):
     name = models.CharField(max_length=50)
     books_read = models.ManyToManyField(Book, related_name='read_by')
+
+    objects = MemoizedManager()
 
     def __str__(self):
         return self.name
@@ -87,19 +102,23 @@ class BookReview(models.Model):
     book = models.ForeignKey(BookWithYear)
     notes = models.TextField(null=True, blank=True)
 
+    objects = MemoizedManager()
+
 
 # Models for default manager tests
 
 class Qualification(models.Model):
     name = models.CharField(max_length=10)
 
+    objects = MemoizedManager()
+
     class Meta:
         ordering = ['id']
 
 
-class TeacherManager(models.Manager):
-    def get_queryset(self):
-        return super(TeacherManager, self).get_queryset().prefetch_related('qualifications')
+class TeacherManager(MemoizedManager):
+    def get_queryset(self, query=None):
+        return super(TeacherManager, self).get_queryset(query=query).prefetch_related('qualifications')
 
 
 @python_2_unicode_compatible
@@ -120,6 +139,8 @@ class Department(models.Model):
     name = models.CharField(max_length=50)
     teachers = models.ManyToManyField(Teacher)
 
+    objects = MemoizedManager()
+
     class Meta:
         ordering = ['id']
 
@@ -135,11 +156,13 @@ class TaggedItem(models.Model):
     created_by_ct = models.ForeignKey(ContentType, null=True,
                                       related_name='taggeditem_set3')
     created_by_fkey = models.PositiveIntegerField(null=True)
-    created_by = GenericForeignKey('created_by_ct', 'created_by_fkey',)
+    created_by = GenericForeignKey('created_by_ct', 'created_by_fkey', )
     favorite_ct = models.ForeignKey(ContentType, null=True,
                                     related_name='taggeditem_set4')
     favorite_fkey = models.CharField(max_length=64, null=True)
     favorite = GenericForeignKey('favorite_ct', 'favorite_fkey')
+
+    objects = MemoizedManager()
 
     def __str__(self):
         return self.tag
@@ -156,6 +179,8 @@ class Bookmark(models.Model):
                                     object_id_field='favorite_fkey',
                                     related_query_name='favorite_bookmarks')
 
+    objects = MemoizedManager()
+
     class Meta:
         ordering = ['id']
 
@@ -167,6 +192,8 @@ class Comment(models.Model):
     content_type = models.ForeignKey(ContentType)
     object_pk = models.TextField()
     content_object = GenericForeignKey(ct_field="content_type", fk_field="object_pk")
+
+    objects = MemoizedManager()
 
     class Meta:
         ordering = ['id']
@@ -180,6 +207,8 @@ class House(models.Model):
     owner = models.ForeignKey('Person', null=True)
     main_room = models.OneToOneField('Room', related_name='main_room_of', null=True)
 
+    objects = MemoizedManager()
+
     class Meta:
         ordering = ['id']
 
@@ -188,6 +217,8 @@ class Room(models.Model):
     name = models.CharField(max_length=50)
     house = models.ForeignKey(House, related_name='rooms')
 
+    objects = MemoizedManager()
+
     class Meta:
         ordering = ['id']
 
@@ -195,6 +226,8 @@ class Room(models.Model):
 class Person(models.Model):
     name = models.CharField(max_length=50)
     houses = models.ManyToManyField(House, related_name='occupants')
+
+    objects = MemoizedManager()
 
     @property
     def primary_house(self):
@@ -217,6 +250,8 @@ class Employee(models.Model):
     boss = models.ForeignKey('self', null=True,
                              related_name='serfs')
 
+    objects = MemoizedManager()
+
     def __str__(self):
         return self.name
 
@@ -231,6 +266,8 @@ class LessonEntry(models.Model):
     name1 = models.CharField(max_length=200)
     name2 = models.CharField(max_length=200)
 
+    objects = MemoizedManager()
+
     def __str__(self):
         return "%s %s" % (self.name1, self.name2)
 
@@ -239,6 +276,8 @@ class LessonEntry(models.Model):
 class WordEntry(models.Model):
     lesson_entry = models.ForeignKey(LessonEntry)
     name = models.CharField(max_length=200)
+
+    objects = MemoizedManager()
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.id)
@@ -251,6 +290,8 @@ class Author2(models.Model):
     name = models.CharField(max_length=50, unique=True)
     first_book = models.ForeignKey('Book', related_name='first_time_authors+')
     favorite_books = models.ManyToManyField('Book', related_name='+')
+
+    objects = MemoizedManager()
 
     def __str__(self):
         return self.name

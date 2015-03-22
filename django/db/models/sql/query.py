@@ -455,12 +455,16 @@ class Query(object):
             in zip(outer_query.annotation_select.items(), result)
         }
 
-    def get_count(self, using):
+    def _get_count_query(self):
+        obj = self.clone()
+        obj.add_annotation(Count('*'), alias='__count', is_summary=True)
+        return obj
+
+    def get_count(self, using, query=None):
         """
         Performs a COUNT() query using the current filter constraints.
         """
-        obj = self.clone()
-        obj.add_annotation(Count('*'), alias='__count', is_summary=True)
+        obj = query or self._get_count_query()
         number = obj.get_aggregation(using, ['__count'])['__count']
         if number is None:
             number = 0
@@ -469,12 +473,16 @@ class Query(object):
     def has_filters(self):
         return self.where
 
-    def has_results(self, using):
+    def _get_has_results_query(self):
         q = self.clone()
         if not q.distinct:
             q.clear_select_clause()
         q.clear_ordering(True)
         q.set_limits(high=1)
+        return q
+
+    def has_results(self, using, query=None):
+        q = query or self._get_has_results_query()
         compiler = q.get_compiler(using=using)
         return compiler.has_results()
 

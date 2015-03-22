@@ -31,7 +31,7 @@ from .models import (
     SimpleCategory, SingleObject, SpecialCategory, Staff, StaffUser, Student,
     Tag, Task, Ticket21203Child, Ticket21203Parent, Ticket23605A, Ticket23605B,
     Ticket23605C, TvChef, Valid,
-)
+    TicketXXX)
 
 
 class BaseQuerysetTest(TestCase):
@@ -1966,6 +1966,11 @@ class QuerysetOrderedTests(unittest.TestCase):
         self.assertEqual(Tag.objects.all().ordered, True)
         self.assertEqual(Tag.objects.all().order_by().ordered, False)
 
+    def test_ordering_cache_invalidates_on_clone(self):
+        qs = Tag.objects.all().order_by()
+        self.assertEqual(qs.ordered, False)
+        self.assertEqual(qs.order_by('parent').ordered, True)
+
     def test_explicit_ordering(self):
         self.assertEqual(Annotation.objects.all().order_by('id').ordered, True)
 
@@ -3669,3 +3674,60 @@ class TestTicket24279(TestCase):
         School.objects.create()
         qs = School.objects.filter(Q(pk__in=()) | Q())
         self.assertQuerysetEqual(qs, [])
+
+
+class TestTicketXXX(TestCase):
+    def assertAllQueryIsCached(self, qs, qs2):
+        self.assertEqual(qs.query, TicketXXX.objects._all_query)
+        self.assertEqual(qs2.query, TicketXXX.objects._all_query)
+        self.assertIs(qs.query, qs2.query)
+
+    def assertNoneQueryIsCached(self, qs, qs2):
+        self.assertEqual(qs.query, TicketXXX.objects._none_query)
+        self.assertEqual(qs2.query, TicketXXX.objects._none_query)
+        self.assertIs(qs.query, qs2.query)
+
+    def assertReverseQueryIsCached(self, qs, qs2):
+        self.assertEqual(qs.query, TicketXXX.objects._reverse_query)
+        self.assertEqual(qs2.query, TicketXXX.objects._reverse_query)
+        self.assertIs(qs.query, qs2.query)
+
+    def assertCountQueryIsCached(self, qs, qs2):
+        self.assertTrue(hasattr(TicketXXX.objects, '_count_query'))
+        self.assertIsInstance(qs, int)
+        self.assertIsInstance(qs2, int)
+
+    def assertExistsQueryIsCached(self, qs, qs2):
+        self.assertTrue(hasattr(TicketXXX.objects, '_exists_query'))
+        self.assertIsInstance(qs, bool)
+        self.assertIsInstance(qs2, bool)
+
+    def test_clone_all_once(self):
+        qs = TicketXXX.objects.all()
+        qs2 = TicketXXX.objects.all()
+
+        self.assertAllQueryIsCached(qs, qs2)
+
+    def test_clone_none_once(self):
+        qs = TicketXXX.objects.none()
+        qs2 = TicketXXX.objects.none()
+
+        self.assertNoneQueryIsCached(qs, qs2)
+
+    def test_clone_reverse_once(self):
+        qs = TicketXXX.objects.reverse()
+        qs2 = TicketXXX.objects.reverse()
+
+        self.assertReverseQueryIsCached(qs, qs2)
+
+    def test_clone_count_once(self):
+        qs = TicketXXX.objects.count()
+        qs2 = TicketXXX.objects.count()
+
+        self.assertCountQueryIsCached(qs, qs2)
+
+    def test_clone_exists_query_once(self):
+        qs = TicketXXX.objects.exists()
+        qs2 = TicketXXX.objects.exists()
+
+        self.assertExistsQueryIsCached(qs, qs2)
